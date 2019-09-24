@@ -5,6 +5,13 @@ import numpy as np
 import cv2
 import imutils
 import time
+from datetime import datetime, timedelta
+
+def most_common(lst):
+    cleared = [elem for elem in lst if elem != '']
+    if not len(cleared) > 0:
+        return ''
+    return max(set(cleared), key=lst.count)
 
 BUFFER_SIZE = 32
 
@@ -16,9 +23,13 @@ greenUpper = (173, 190, 225)
 # initialize the list of tracked points, the frame counter,
 # and the coordinate deltas
 pts = deque(maxlen=BUFFER_SIZE)
+directions = deque()
 counter = 0
 (dX, dY) = (0, 0)
 direction = ""
+final_direction = ""
+
+previous_timestamp = datetime.now()
 
 vs = VideoStream(src=0).start()
 
@@ -30,6 +41,7 @@ while True:
     if frame is None:
         break
 
+    frame = cv2.flip(frame, 1)
     frame = imutils.resize(frame, width=600)
     blurred = cv2.GaussianBlur(frame, (11, 11), 0)
     hsv = cv2.cvtColor(blurred, cv2.COLOR_BGR2HSV)
@@ -101,16 +113,28 @@ while True:
             # otherwise, only one direction is non-empty
             else:
                 direction = dirX if dirX != "" else dirY
+            
+            for elem in direction.split('-'):
+                directions.appendleft(elem)
         # otherwise, compute the thickness of the line and
         # draw the connecting lines
         thickness = int(np.sqrt(BUFFER_SIZE / float(i + 1)) * 2.5)
         cv2.line(frame, pts[i - 1], pts[i], (0, 0, 255), thickness)
 
-    # show the movement deltas and the direction of movement on
+    current_timestamp = datetime.now()
+    if current_timestamp - previous_timestamp > timedelta(seconds=1):
+        previous_timestamp = current_timestamp
+        if {'North', 'East', 'West', 'South'}.issubset(set(directions)):
+            final_direction = 'Circle'
+        else:
+            final_direction = most_common(directions)
+        directions.clear()
+
+        # show the movement deltas and the direction of movement on
     # the frame
     cv2.putText(
         frame,
-        direction,
+        final_direction,
         (10, 30),
         cv2.FONT_HERSHEY_SIMPLEX,
         0.65,
@@ -126,6 +150,7 @@ while True:
         (0, 0, 255),
         1
     )
+    
 
     # show the frame to our screen and increment the frame counter
     cv2.imshow("Frame", frame)
