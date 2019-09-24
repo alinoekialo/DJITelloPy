@@ -24,12 +24,14 @@ def accepts(**types):
             for i, v in enumerate(args):
                 if fun_code.co_varnames[i] in types and \
                         not isinstance(v, types[fun_code.co_varnames[i]]):
-                    raise TypeError("arg '%s'=%r does not match %s" % (fun_code.co_varnames[i], v,
-                                                                       types[fun_code.co_varnames[i]]))
+                    raise TypeError("arg '%s'=%r does not match %s" %
+                                    (fun_code.co_varnames[i], v,
+                                     types[fun_code.co_varnames[i]]))
 
             for k, v in kwds.items():
                 if k in types and not isinstance(v, types[k]):
-                    raise TypeError("arg '%s'=%r does not match %s" % (k, v, types[k]))
+                    raise TypeError(
+                        "arg '%s'=%r does not match %s" % (k, v, types[k]))
 
             return f(*args, **kwds)
 

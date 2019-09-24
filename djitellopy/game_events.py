@@ -1,4 +1,3 @@
-
 from enum import Enum
 from pygame.locals import USEREVENT
 
