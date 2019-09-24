@@ -7,9 +7,17 @@ import imutils
 import cv2
 import pygame
 import numpy as np
+from enum import IntEnum
 from threading import Thread
 from djitellopy.decorators import accepts
 from djitellopy.game_events import GameEvents
+
+
+class State(IntEnum):
+    idle = 0
+    yawing = 1
+    flipping = 2
+    initializing = 10
 
 
 class Tello:
@@ -32,7 +40,7 @@ class Tello:
 
     LOGGER = logging.getLogger('djitellopy')
     LOGGER.addHandler(HANDLER)
-    LOGGER.setLevel(logging.INFO)
+    LOGGER.setLevel(logging.DEBUG)
     # use logging.getLogger('djitellopy').setLevel(logging.<LEVEL>) in YOUR CODE
     # to only receive logs of the desired level and higher
 
@@ -61,6 +69,7 @@ class Tello:
         self.stream_on = False
         self.enable_exceptions = enable_exceptions
         self.retry_count = retry_count
+        self.idle = State.idle
 
         if client_socket:
             self.clientSocket = client_socket
@@ -298,7 +307,7 @@ class Tello:
         if diff < self.TIME_BTW_COMMANDS:
             time.sleep(diff)
 
-        self.LOGGER.info('Send command: ' + command)
+        self.LOGGER.debug('Send command: ' + command)
         timestamp = int(time.time() * 1000)
 
         self.clientSocket.sendto(command.encode('utf-8'), self.address)
@@ -310,7 +319,7 @@ class Tello:
 
         response = self.response.decode('utf-8').rstrip("\r\n")
 
-        self.LOGGER.info('Response: ' + response)
+        self.LOGGER.debug('Response: ' + response)
 
         self.response = None
 
@@ -342,7 +351,7 @@ class Tello:
         """
         # Commands very consecutive makes the drone not respond to them. So wait at least self.TIME_BTW_COMMANDS seconds
 
-        self.LOGGER.info('Send command (no expect response): ' + command)
+        self.LOGGER.debug('Send command (no expect response): ' + command)
         self.clientSocket.sendto(command.encode('utf-8'), self.address)
 
     @accepts(command=str)
@@ -373,12 +382,15 @@ class Tello:
         Return:
             bool: True for successful, False for unsuccessful
         """
-
+        self.LOGGER.debug(command)
         for i in range(0, self.retry_count):
             response = self.send_command_with_return(command)
 
             if response == 'OK' or response == 'ok':
                 return True
+            elif self.is_moving():
+                return True
+            time.sleep(0.2)
 
         return self.return_error_on_send_command(command, response,
                                                  self.enable_exceptions)
@@ -862,6 +874,12 @@ class Tello:
             str: Serial Number
         """
         return self.send_read_command('sn?')
+
+    def is_idle(self):
+        return self.get_speed() > 0
+
+    def is_moving(self):
+        return not self.is_idle()
 
     def end(self):
         """Call this method when you want to end the tello object"""
