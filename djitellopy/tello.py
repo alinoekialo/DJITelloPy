@@ -51,7 +51,7 @@ class Tello:
                  port=8889,
                  client_socket=None,
                  enable_exceptions=True,
-                 retry_count=3):
+                 retry_count=10):
 
         self.address = (host, port)
         self.response = None
