@@ -6,6 +6,7 @@ import threading
 import imutils
 import cv2
 import pygame
+import numpy as np
 from threading import Thread
 from djitellopy.decorators import accepts
 from djitellopy.game_events import GameEvents
@@ -920,6 +921,79 @@ def detectRosePaper(frame) -> bool:
             return True
     return False
 
+def calculateAnchor(frame):
+    greenLower = (157, 82, 89)
+    greenUpper = (173, 190, 225)
+
+    blurred = cv2.GaussianBlur(frame, (11, 11), 0)
+    hsv = cv2.cvtColor(blurred, cv2.COLOR_BGR2HSV)
+
+    mask = cv2.inRange(hsv, greenLower, greenUpper)
+    mask = cv2.erode(mask, None, iterations=2)
+    mask = cv2.dilate(mask, None, iterations=2)
+
+    # find contours in the mask and initialize the current
+    # (x, y) center of the ball
+    cnts = cv2.findContours(
+        mask.copy(),
+        cv2.RETR_EXTERNAL,
+        cv2.CHAIN_APPROX_SIMPLE
+    )
+    cnts = imutils.grab_contours(cnts)
+    center = None
+    if len(cnts) > 0:
+        # find the largest contour in the mask
+        c = max(cnts, key=cv2.contourArea)
+        _, radius = cv2.minEnclosingCircle(c)
+        M = cv2.moments(c)
+        center = (int(M["m10"] / M["m00"]), int(M["m01"] / M["m00"]))
+
+        # only proceed if the radius meets a minimum size
+        if radius > 20:
+            return center
+    return None
+
+def getDirectionFromPoints(points):
+    directions = []
+    if len(points) < 10:
+        return directions
+    
+    # if either of the tracked points are None, ignore
+    # them
+    if points[0] is None or points[1] is None or points[-10] is None:
+        return directions
+
+    # compute the difference between the x and y
+    # coordinates and re-initialize the direction
+    # text variables
+    dX = points[-10][0] - points[0][0]
+    dY = points[-10][1] - points[0][1]
+    direction = ""
+
+    # ensure there is significant movement in the
+    # x-direction
+    if np.abs(dX) >= np.abs(dY):
+        if np.abs(dX) > 20:
+            direction = "East" if np.sign(dX) == 1 else "West"
+    elif np.abs(dY) > 20:
+        direction = "North" if np.sign(dY) == 1 else "South"
+
+    return direction
+
+def most_common(lst):
+    cleared = [elem for elem in lst if elem != '']
+    if not len(cleared) > 0:
+        return ''
+    return max(set(cleared), key=lst.count)
+
+def getDirectionForDrone(directions):
+    direction = ""
+    if {'North', 'East', 'West', 'South'}.issubset(set(directions)):
+        direction = 'Circle'
+    else:
+        direction = most_common(directions)
+    return direction
+
 
 class BackgroundFrameRead:
     """
@@ -972,3 +1046,4 @@ class BackgroundFrameRead:
 
     def stop(self):
         self.stopped = True
+    
