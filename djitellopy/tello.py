@@ -18,7 +18,7 @@ class Tello:
     # Send and receive commands, client socket
     UDP_IP = '192.168.10.1'
     UDP_PORT = 8889
-    RESPONSE_TIMEOUT = 7  # in seconds
+    RESPONSE_TIMEOUT = 10  # in seconds
     TIME_BTW_COMMANDS = 1  # in seconds
     TIME_BTW_RC_CONTROL_COMMANDS = 0.5  # in seconds
     RETRY_COUNT = 3
@@ -51,7 +51,7 @@ class Tello:
                  port=8889,
                  client_socket=None,
                  enable_exceptions=True,
-                 retry_count=3):
+                 retry_count=10):
 
         self.address = (host, port)
         self.response = None
