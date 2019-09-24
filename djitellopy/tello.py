@@ -3,6 +3,7 @@ import logging
 import socket
 import time
 import threading
+import imutils
 import cv2
 import pygame
 from threading import Thread
@@ -874,6 +875,52 @@ class Tello:
         self.end()
 
 
+def detectRosePaper(frame) -> bool:
+    # define the lower and upper boundaries of the "green"
+    # ball in the HSV color space
+    greenLower = (157, 82, 89)
+    greenUpper = (173, 190, 225)
+
+    # frame = imutils.resize(frame, width=600)
+    blurred = cv2.GaussianBlur(frame, (11, 11), 0)
+    hsv = cv2.cvtColor(blurred, cv2.COLOR_BGR2HSV)
+
+    mask = cv2.inRange(hsv, greenLower, greenUpper)
+    mask = cv2.erode(mask, None, iterations=2)
+    mask = cv2.dilate(mask, None, iterations=2)
+
+    # find contours in the mask and initialize the current
+    # (x, y) center of the ball
+    cnts = cv2.findContours(
+        mask.copy(),
+        cv2.RETR_EXTERNAL,
+        cv2.CHAIN_APPROX_SIMPLE
+    )
+    cnts = imutils.grab_contours(cnts)
+    center = None
+    if len(cnts) > 0:
+        # find the largest contour in the mask
+        c = max(cnts, key=cv2.contourArea)
+        ((x, y), radius) = cv2.minEnclosingCircle(c)
+        M = cv2.moments(c)
+        center = (int(M["m10"] / M["m00"]), int(M["m01"] / M["m00"]))
+
+        # only proceed if the radius meets a minimum size
+        if radius > 40:
+            # draw the circle and centroid on the frame,
+            # then update the list of tracked points
+            cv2.circle(
+                frame,
+                (int(x), int(y)),
+                int(radius),
+                (0, 255, 255),
+                2
+            )
+            cv2.circle(frame, center, 5, (0, 0, 255), -1)
+            return True
+    return False
+
+
 class BackgroundFrameRead:
     """
     This class read frames from a VideoCapture in background. Then, just call backgroundFrameRead.frame to get the
@@ -911,13 +958,16 @@ class BackgroundFrameRead:
             else:
                 # cap is an opencv video capture
                 (self.grabbed, self.frame) = self.cap.read()
+                detected = detectRosePaper(self.frame)
+                if detected:
+                    self.update_command({'detected': True})
                 # add filter and then on event trigger update_command
                 # update_command with the parameters
                 # once the command is sent, you can retrieve it in the main loop
 
     def update_command(self, command_parameter):
         video_event = pygame.event.Event(GameEvents.VIDEO_EVENT.value,
-                                         {'parameter': 'hello'})
+                                         command_parameter)
         pygame.event.post(video_event)
 
     def stop(self):

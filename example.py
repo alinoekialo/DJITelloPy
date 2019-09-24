@@ -68,6 +68,8 @@ class FrontEnd(object):
 
         frame_read = self.tello.get_frame_read()
 
+        self.state = 'waiting'
+
         should_stop = False
         while not should_stop:
 
@@ -86,7 +88,12 @@ class FrontEnd(object):
                 elif event.type == GameEvents.VIDEO_EVENT.value:
                     # here you can update the status using the uav command
                     # or send an advanced command like flip: tello.flip_left
-                    self.tello.LOGGER.info(f'got video event: {event.parameter}')
+                    self.tello.LOGGER.info(f'got video event: {event.detected}')
+                    if self.state == 'waiting':
+                        self.state = 'flipping'
+                        self.tello.flip_back()
+                        time.sleep(2)
+                        self.state = 'waiting'
 
             if frame_read.stopped:
                 frame_read.stop()
