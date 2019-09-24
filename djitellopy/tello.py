@@ -40,7 +40,7 @@ class Tello:
 
     LOGGER = logging.getLogger('djitellopy')
     LOGGER.addHandler(HANDLER)
-    LOGGER.setLevel(logging.DEBUG)
+    LOGGER.setLevel(logging.WARNING)
     # use logging.getLogger('djitellopy').setLevel(logging.<LEVEL>) in YOUR CODE
     # to only receive logs of the desired level and higher
 

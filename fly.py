@@ -21,8 +21,6 @@ class Drone:
         self.screen = pygame.display.set_mode([960, 720])
 
         self.tello = Tello()
-        self.tello.connect()
-        self.tello.takeoff()
 
         # Drone velocities between -100~100
         self.for_back_velocity = 0
@@ -33,6 +31,7 @@ class Drone:
 
         self.command_queue = []
         self.shutdown = False
+        self.should_stop = False
 
         # create update timer
         pygame.time.set_timer(USEREVENT + 1, 50)
@@ -48,27 +47,46 @@ class Drone:
                 self.tello.state = State.idle
 
     def fly(self):
+        if not self.tello.connect():
+            print("Tello not connected")
+            return
+
+        if not self.tello.set_speed(self.speed):
+            print("Not set speed to lowest possible")
+            return
+        # In case streaming is on. This happens when we quit this program without the escape key.
+        if not self.tello.streamoff():
+            print("Could not stop video stream")
+            return
+
+        if not self.tello.streamon():
+            print("Could not start video stream")
+            return
         frame_read = self.tello.get_frame_read()
-        while True:
-            if self.tello.state is State.initializing:
-                log.info('Starting yaw')
-                self.tello.state = State.yawing
-                self.yaw_velocity = 50
+        time.sleep(2)
+        self.tello.takeoff()
+        if self.tello.state is State.initializing:
+            self.tello.state = State.yawing
+            self.yaw_velocity = 100
+        while not self.should_stop:
             for event in pygame.event.get():
                 if event.type == USEREVENT + 1:
-                    self.update()
-                if self.tello.state is State.yawing:
-                    if event.type == GameEvents.VIDEO_EVENT.value:
+                    if (self.tello.state is State.initializing or
+                            self.tello.state is State.yawing or
+                            self.tello.state is State.idle):
+                        self.update()
+                if event.type == GameEvents.VIDEO_EVENT.value:
+                    if self.tello.state is State.yawing:
                         self.yaw_velocity = 0
+                        self.tello.state = State.idle
+                    elif self.tello.state is State.idle:
                         self.flip()
-                elif self.tello.state is State.idle:
-                    self.flip('f')
                 elif event.type == KEYDOWN:
-                    if event.key == K_ESCAPE:
-                        log.info('Landing')
-                        self.tello.land()
-                        break
-
+                    self.should_stop = True
+                    # if event.key == K_ESCAPE:
+                    #     log.info('Landing')
+                    #     self.tello.land()
+                    #     break
             if frame_read.stopped:
                 frame_read.stop()
                 break
@@ -82,6 +100,8 @@ class Drone:
             pygame.display.update()
 
             time.sleep(1 / FPS)
+
+        self.tello.end()
 
     def update(self):
         """ Update routine. Send velocities to Tello."""
