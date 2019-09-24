@@ -4,8 +4,10 @@ import socket
 import time
 import threading
 import cv2
+import pygame
 from threading import Thread
 from djitellopy.decorators import accepts
+from djitellopy.game_events import GameEvents
 
 
 class Tello:
@@ -861,6 +863,16 @@ class BackgroundFrameRead:
         self.grabbed, self.frame = self.cap.read()
         self.stopped = False
 
+        HANDLER = logging.StreamHandler()
+        FORMATTER = logging.Formatter('%(message)s')
+        HANDLER.setFormatter(FORMATTER)
+        LOGGER = logging.getLogger(self.__class__.__name__)
+        LOGGER.addHandler(HANDLER)
+        LOGGER.setLevel(logging.INFO)
+        self.LOGGER = LOGGER
+
+        self.random_counter = 0
+
     def start(self):
         Thread(target=self.update_frame, args=()).start()
         return self
@@ -870,7 +882,16 @@ class BackgroundFrameRead:
             if not self.grabbed or not self.cap.isOpened():
                 self.stop()
             else:
+                # cap is an opencv video capture
                 (self.grabbed, self.frame) = self.cap.read()
+                # add filter and then on event trigger update_command
+                # update_command with the parameters
+                # once the command is sent, you can retrieve it in the main loop
+
+    def update_command(self, command_parameter):
+        video_event = pygame.event.Event(GameEvents.VIDEO_EVENT.value,
+                                         {'parameter': 'hello'})
+        pygame.event.post(video_event)
 
     def stop(self):
         self.stopped = True

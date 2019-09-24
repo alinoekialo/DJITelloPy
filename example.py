@@ -5,6 +5,8 @@ from pygame.locals import *
 import numpy as np
 import time
 
+from djitellopy.game_events import GameEvents
+
 # Speed of the drone
 S = 60
 # Frames per second of the pygame window display
@@ -81,6 +83,10 @@ class FrontEnd(object):
                         self.keydown(event.key)
                 elif event.type == KEYUP:
                     self.keyup(event.key)
+                elif event.type == GameEvents.VIDEO_EVENT.value:
+                    # here you can update the status using the uav command
+                    # or send an advanced command like flip: tello.flip_left
+                    self.tello.LOGGER.info(f'got video event: {event.parameter}')
 
             if frame_read.stopped:
                 frame_read.stop()
